@@ -12,8 +12,21 @@ import path from 'path';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import Store from 'electron-store';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+
+// const { exec } = require('child_process');
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
+
+const sudo = require('sudo-prompt');
+
+const options = {
+  name: 'setTimer',
+};
+
+const store = new Store();
 
 class AppUpdater {
   constructor() {
@@ -24,6 +37,40 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+// info https://www.dssw.co.uk/reference/pmset/
+
+// IPC listener
+ipcMain.on('electron-store-get', async (event, val) => {
+  const { stdout, stderr } = await exec('pmset -g sched');
+  if (stderr) {
+    console.log(`stderr: ${stderr}`);
+  }
+  if (stdout) {
+    console.log(`stdout: ${stdout}`);
+    event.returnValue = store.get(val);
+  }
+  // event.returnValue = store.get(val);
+});
+ipcMain.on('electron-store-set', async (event, key, val) => {
+  // exec('pmset -g sched');
+  // 8:00:00
+  sudo.exec(
+    `pmset repeat wake M ${val}`,
+    options,
+    (error: string, stdout: string) => {
+      if (error) throw error;
+      console.log(`stdout: ${stdout}`);
+    }
+  );
+  store.set(key, val);
+});
+ipcMain.on('electron-store-reset', async () => {
+  sudo.exec(`pmset repeat cancel`, options, (error: string, stdout: string) => {
+    if (error) throw error;
+    console.log(`reset: ${stdout}`);
+  });
+});
 
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
@@ -75,6 +122,7 @@ const createWindow = async () => {
     height: 728,
     icon: getAssetPath('icon.png'),
     webPreferences: {
+      nodeIntegration: true,
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
         : path.join(__dirname, '../../.erb/dll/preload.js'),

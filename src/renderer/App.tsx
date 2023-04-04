@@ -35,6 +35,36 @@ function Hello() {
           </button>
         </a>
       </div>
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            window.electron.store.set('time', '8:00:00');
+            // or
+            console.log(window.electron.store.get('time'));
+          }}
+        >
+          Setta
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            window.electron.store.get('time');
+            console.log(window.electron.store.get('time'));
+          }}
+        >
+          Mostra orari
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            window.electron.store.reset();
+            console.log(window.electron.store.get('time'));
+          }}
+        >
+          Reset
+        </button>
+      </div>
     </div>
   );
 }
